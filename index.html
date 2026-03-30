@@ -125,7 +125,6 @@
 </div>
 
 <div class="main">
-
   <div class="upload-panel" id="tab-ingresar">
     <div class="panel">
       <div class="panel-title">📄 Subir confirmación <span class="badge">IA</span></div>
@@ -220,7 +219,6 @@
       <div class="empty-state" id="emptyState" style="display:none"><div class="empty-icon">✈️</div><p>Sin registros aún.</p></div>
     </div>
   </div>
-
 </div>
 <div class="toast" id="toast"></div>
 
@@ -234,9 +232,21 @@ if (scriptUrl) { document.getElementById('scriptUrl').value = scriptUrl; setSync
 
 function saveScriptUrl() { scriptUrl = document.getElementById('scriptUrl').value.trim(); localStorage.setItem('aerotrack_script_url', scriptUrl); }
 
-async function callScript(params) {
+// Llamada GET (para listar registros — no tiene problema de CORS)
+async function callGet(params={}) {
   const url = scriptUrl + '?' + new URLSearchParams(params).toString();
   const r = await fetch(url);
+  return r.json();
+}
+
+// Llamada POST con text/plain para evitar preflight CORS
+// Apps Script acepta text/plain sin preflight
+async function callPost(data) {
+  const r = await fetch(scriptUrl, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'text/plain' }
+  });
   return r.json();
 }
 
@@ -244,12 +254,12 @@ async function testConnection() {
   if (!scriptUrl) { showToast('Ingresa la URL primero','error'); return; }
   setSyncStatus('spin','Probando...');
   try {
-    const d = await callScript({ action: 'list' });
+    const d = await callGet();
     setSyncStatus('ok','Conectado ✓');
     showToast('✓ Conexión exitosa','success');
   } catch(e) {
     setSyncStatus('err','Error de conexión');
-    showToast('No se pudo conectar. Verifica la URL.','error');
+    showToast('No se pudo conectar: ' + e.message,'error');
   }
 }
 
@@ -278,21 +288,20 @@ async function extractWithAI() {
   document.getElementById('extractBtn').disabled = true;
 
   try {
-    const params = { action: 'extract' };
-    if (emailText) params.text = encodeURIComponent(emailText);
-    if (attachedFileBase64) params.pdfBase64 = encodeURIComponent(attachedFileBase64);
+    const payload = { action: 'extract', text: emailText };
+    if (attachedFileBase64) payload.pdfBase64 = attachedFileBase64;
 
-    const d = await callScript(params);
+    const d = await callPost(payload);
 
     if (d.success && d.data) {
       FIELDS.forEach(f => { const el = document.getElementById('f_'+f); if (el && d.data[f] !== undefined && d.data[f] !== '') el.value = d.data[f]; });
       document.getElementById('extractedBadge').style.display = 'inline-block';
       showToast('✓ Datos extraídos correctamente','success');
     } else {
-      showToast('No se pudieron extraer los datos: ' + (d.error || 'error desconocido'), 'error');
+      showToast('No se pudieron extraer los datos: ' + (d.error||'error desconocido'),'error');
     }
   } catch(e) {
-    showToast('Error al procesar: ' + e.message, 'error');
+    showToast('Error al procesar: ' + e.message,'error');
   }
 
   setAIStatus(false);
@@ -311,11 +320,12 @@ async function saveRecord() {
   if (!scriptUrl) { showToast('Configura la URL primero','error'); return; }
 
   r.id = Date.now(); r.created = new Date().toISOString();
+  r.action = 'save';
   document.getElementById('saveBtn').disabled = true;
   setSyncStatus('spin','Guardando...');
 
   try {
-    const d = await callScript({ action: 'save', data: encodeURIComponent(JSON.stringify(r)) });
+    const d = await callPost(r);
     setSyncStatus('ok','Guardado ✓');
     clearForm();
     showToast('✓ Guardado en Google Sheets','success');
@@ -331,7 +341,7 @@ async function loadFromSheets() {
   if (!scriptUrl) { showToast('Configura la URL primero','error'); return; }
   setSyncStatus('spin','Cargando...');
   try {
-    const d = await callScript({ action: 'list' });
+    const d = await callGet();
     records = (d.records||[]).map(row => ({
       pasajero: row['Pasajero']||'', aerolinea: row['Aerolínea']||'',
       fecha_compra: row['Fecha Compra']||'', desde: row['Desde']||'',
