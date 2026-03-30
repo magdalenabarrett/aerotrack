@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroTrack / Pasajes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c; --surface: #1a1916; --surface2: #242220; --border: #2e2c29;
+    --accent: #e8c547; --accent2: #c4a832; --text: #f0ece3; --muted: #7a7569;
+    --success: #4caf7d; --error: #e05c5c;
+    --mono: 'DM Mono', monospace; --serif: 'Fraunces', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; font-size: 13px; }
+
+  header { border-bottom: 1px solid var(--border); padding: 20px 36px; display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+  .logo { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--accent); }
+  .logo span { color: var(--muted); font-weight: 300; font-style: italic; font-size: 16px; }
+
+  .config-banner { background: rgba(232,197,71,0.08); border-bottom: 1px solid rgba(232,197,71,0.2); padding: 10px 36px; display: flex; align-items: center; gap: 12px; }
+  .config-banner label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .config-banner input { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-family: var(--mono); font-size: 12px; padding: 6px 10px; flex: 1; max-width: 500px; }
+  .config-banner input:focus { outline: none; border-color: var(--accent); }
+  .btn-sm { background: var(--accent); color: var(--bg); border: none; border-radius: 5px; padding: 6px 14px; font-family: var(--mono); font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .btn-sm:hover { background: var(--accent2); }
+
+  .tabs { display: flex; gap: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px; }
+  .tab { padding: 6px 16px; border-radius: 4px; cursor: pointer; color: var(--muted); font-family: var(--mono); font-size: 12px; border: none; background: transparent; transition: all 0.15s; }
+  .tab.active { background: var(--accent); color: var(--bg); font-weight: 500; }
+
+  .main { padding: 28px 36px; max-width: 1300px; margin: 0 auto; }
+  .upload-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+  .panel-title { font-family: var(--serif); font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .badge { background: var(--accent); color: var(--bg); font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+
+  .drop-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 48px 20px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: rgba(232,197,71,0.04); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 32px; margin-bottom: 12px; }
+  .drop-label { color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .drop-label strong { color: var(--accent); }
+
+  .ai-status { display: none; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(232,197,71,0.07); border: 1px solid rgba(232,197,71,0.2); border-radius: 6px; margin: 14px 0; font-size: 12px; color: var(--accent); }
+  .ai-status.show { display: flex; }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(232,197,71,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn { background: var(--accent); color: var(--bg); border: none; border-radius: 6px; padding: 10px 20px; font-family: var(--mono); font-size: 13px; font-weight: 500; cursor: pointer; width: 100%; margin-top: 6px; transition: all 0.15s; }
+  .btn:hover { background: var(--accent2); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+
+  .field-group { display: flex; flex-direction: column; gap: 11px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; }
+  .field input, .field select, .field textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-family: var(--mono); font-size: 13px; padding: 8px 11px; width: 100%; transition: border-color 0.15s; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .field select option { background: var(--surface); }
+  .field textarea { resize: vertical; min-height: 52px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .required-label { color: var(--accent); }
+  .extracted-badge { display: inline-block; background: rgba(76,175,125,0.15); border: 1px solid rgba(76,175,125,0.3); color: var(--success); font-size: 10px; padding: 1px 7px; border-radius: 4px; margin-left: 6px; }
+
+  .table-view { display: none; }
+  .stats-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  .stat-value { font-family: var(--serif); font-size: 24px; color: var(--accent); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
+  .toolbar-left { display: flex; align-items: center; gap: 10px; }
+  .search-input { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 12px; width: 240px; }
+  .search-input:focus { outline: none; border-color: var(--accent); }
+  .count-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 11px; font-size: 11px; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+  thead th { background: var(--surface); padding: 11px 13px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  tbody td { padding: 10px 13px; font-size: 12px; white-space: nowrap; }
+  .td-muted { color: var(--muted); }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  .chip-blue { background: rgba(100,160,255,0.12); color: #80b4ff; }
+  .chip-yellow { background: rgba(232,197,71,0.12); color: var(--accent); }
+  .valor { color: var(--accent); font-weight: 500; }
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+  .sync-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .sync-dot.ok { background: var(--success); }
+  .sync-dot.err { background: var(--error); }
+  .sync-dot.spin { width: 10px; height: 10px; border: 2px solid rgba(232,197,71,0.3); border-top-color: var(--accent); border-radius: 50%; background: transparent; animation: spin 0.8s linear infinite; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; font-size: 13px; transform: translateY(70px); opacity: 0; transition: all 0.3s; z-index: 999; max-width: 380px; line-height: 1.5; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(76,175,125,0.4); color: var(--success); }
+  .toast.error { border-color: rgba(224,92,92,0.4); color: var(--error); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AeroTrack <span>/ Pasajes</span></div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="sync-status"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">Sin configurar</span></div>
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('ingresar')">+ Ingresar</button>
+      <button class="tab" onclick="showTab('registros')">Registros</button>
+    </div>
+  </div>
+</header>
+
+<div class="config-banner">
+  <label>URL Apps Script:</label>
+  <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec" oninput="saveScriptUrl()">
+  <button class="btn-sm" onclick="testConnection()">Probar conexión</button>
+</div>
+
+<div class="main">
+
+  <div class="upload-panel" id="tab-ingresar">
+    <div class="panel">
+      <div class="panel-title">📄 Subir confirmación <span class="badge">IA</span></div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this)">
+        <div class="drop-icon">✈️</div>
+        <div class="drop-label" id="dropLabel"><strong>Arrastra o haz clic para subir</strong><br>PDF o imagen del correo de confirmación</div>
+      </div>
+      <div class="ai-status" id="aiStatus">
+        <div class="spinner"></div>
+        <span id="aiStatusText">Analizando documento...</span>
+      </div>
+      <button class="btn" id="extractBtn" onclick="extractWithAI()">✨ Extraer datos automáticamente</button>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.7px;">O pega el texto del correo</div>
+        <textarea id="emailText" rows="7" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;padding:10px;width:100%;resize:vertical;" placeholder="Pega aquí el contenido del correo de confirmación..."></textarea>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">📋 Datos del pasaje <span id="extractedBadge" style="display:none" class="extracted-badge">✓ Extraído por IA</span></div>
+      <div class="field-group">
+        <div class="row">
+          <div class="field"><label>Aerolínea</label><input type="text" id="f_aerolinea" placeholder="SKY, LATAM..."></div>
+          <div class="field"><label>Fecha Compra</label><input type="date" id="f_fecha_compra"></div>
+        </div>
+        <div class="field"><label>Pasajero — Nombre y Apellido</label><input type="text" id="f_pasajero" placeholder="Nombre completo"></div>
+        <div class="field"><label>RUT Pasajero</label><input type="text" id="f_rut" placeholder="12.345.678-9"></div>
+        <div class="row">
+          <div class="field"><label>Desde</label><input type="text" id="f_desde" placeholder="SCL"></div>
+          <div class="field"><label>Hasta</label><input type="text" id="f_hasta" placeholder="MIA"></div>
+        </div>
+        <div class="field"><label>Tramo</label><input type="text" id="f_tramo" placeholder="SCL → MIA"></div>
+        <div class="row">
+          <div class="field"><label>Fecha Ida</label><input type="date" id="f_fecha_ida"></div>
+          <div class="field"><label>Hora Ida</label><input type="time" id="f_hora_ida"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Fecha Regreso</label><input type="date" id="f_fecha_regreso"></div>
+          <div class="field"><label>Hora Regreso</label><input type="time" id="f_hora_regreso"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Vuelo / Asiento</label><input type="text" id="f_vuelo" placeholder="LA 800, 14A"></div>
+          <div class="field"><label>Días anticipación</label><input type="number" id="f_anticipacion" placeholder="0" min="0"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Valor (CLP)</label><input type="number" id="f_valor" placeholder="0"></div>
+          <div class="field"><label>Forma de Pago</label>
+            <select id="f_pago">
+              <option value="">Seleccionar...</option>
+              <option>Tarjeta corporativa</option>
+              <option>Transferencia</option>
+              <option>Crédito empresa</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Centro de Costo <span class="required-label">★</span></label><input type="text" id="f_cc" placeholder="CC-001"></div>
+          <div class="field"><label>Proyecto <span class="required-label">★</span></label><input type="text" id="f_proyecto" placeholder="Nombre proyecto"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>OC Asociada</label><input type="text" id="f_oc" placeholder="OC-2024-XXX"></div>
+          <div class="field"><label>Factura Asociada</label><input type="text" id="f_factura" placeholder="N° factura"></div>
+        </div>
+        <div class="field"><label>Observaciones</label><textarea id="f_obs" rows="2" placeholder="Notas..."></textarea></div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-secondary" onclick="clearForm()">Limpiar</button>
+          <button class="btn" onclick="saveRecord()" id="saveBtn" style="flex:2">Guardar en Google Sheets</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-view" id="tab-registros">
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input class="search-input" type="text" placeholder="Buscar pasajero, tramo, proyecto..." oninput="renderTable(this.value)">
+        <div class="count-pill" id="countPill">0 registros</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" style="width:auto;margin:0;padding:7px 14px;font-size:12px;" onclick="loadFromSheets()">↻ Actualizar</button>
+        <button class="btn" style="width:auto;margin:0;padding:7px 14px;font-size:12px;" onclick="exportCSV()">↓ CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Aerolínea</th><th>F. Compra</th><th>Pasajero</th><th>Desde</th><th>Hasta</th><th>F. Ida</th><th>F. Regreso</th><th>Valor</th><th>CC</th><th>Proyecto</th><th>Factura</th><th>Pago</th></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none"><div class="empty-icon">✈️</div><p>Sin registros aún.</p></div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const FIELDS = ['aerolinea','fecha_compra','pasajero','rut','desde','hasta','tramo','fecha_ida','hora_ida','fecha_regreso','hora_regreso','vuelo','anticipacion','valor','pago','cc','proyecto','oc','factura','obs'];
+let records = [];
+let scriptUrl = localStorage.getItem('aerotrack_script_url') || '';
+let attachedFileBase64 = null;
+
+if (scriptUrl) { document.getElementById('scriptUrl').value = scriptUrl; setSyncStatus('ok','Configurado'); }
+
+function saveScriptUrl() { scriptUrl = document.getElementById('scriptUrl').value.trim(); localStorage.setItem('aerotrack_script_url', scriptUrl); }
+
+async function callScript(params) {
+  const url = scriptUrl + '?' + new URLSearchParams(params).toString();
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function testConnection() {
+  if (!scriptUrl) { showToast('Ingresa la URL primero','error'); return; }
+  setSyncStatus('spin','Probando...');
+  try {
+    const d = await callScript({ action: 'list' });
+    setSyncStatus('ok','Conectado ✓');
+    showToast('✓ Conexión exitosa','success');
+  } catch(e) {
+    setSyncStatus('err','Error de conexión');
+    showToast('No se pudo conectar. Verifica la URL.','error');
+  }
+}
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragging'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragging'); if (e.dataTransfer.files[0]) handleFile({files: e.dataTransfer.files}); });
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    attachedFileBase64 = e.target.result.split(',')[1];
+    document.getElementById('dropLabel').innerHTML = `<strong style="color:var(--success)">✓ ${file.name}</strong><br><span style="font-size:11px">listo para analizar</span>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extractWithAI() {
+  const emailText = document.getElementById('emailText').value.trim();
+  if (!attachedFileBase64 && !emailText) { showToast('Sube un PDF o pega el texto del correo','error'); return; }
+  if (!scriptUrl) { showToast('Configura la URL del Apps Script primero','error'); return; }
+
+  setAIStatus(true,'Analizando documento con IA...');
+  document.getElementById('extractBtn').disabled = true;
+
+  try {
+    const params = { action: 'extract' };
+    if (emailText) params.text = encodeURIComponent(emailText);
+    if (attachedFileBase64) params.pdfBase64 = encodeURIComponent(attachedFileBase64);
+
+    const d = await callScript(params);
+
+    if (d.success && d.data) {
+      FIELDS.forEach(f => { const el = document.getElementById('f_'+f); if (el && d.data[f] !== undefined && d.data[f] !== '') el.value = d.data[f]; });
+      document.getElementById('extractedBadge').style.display = 'inline-block';
+      showToast('✓ Datos extraídos correctamente','success');
+    } else {
+      showToast('No se pudieron extraer los datos: ' + (d.error || 'error desconocido'), 'error');
+    }
+  } catch(e) {
+    showToast('Error al procesar: ' + e.message, 'error');
+  }
+
+  setAIStatus(false);
+  document.getElementById('extractBtn').disabled = false;
+}
+
+function setAIStatus(show, msg='') {
+  document.getElementById('aiStatus').classList.toggle('show', show);
+  document.getElementById('aiStatusText').textContent = msg;
+}
+
+async function saveRecord() {
+  const r = {};
+  FIELDS.forEach(f => { r[f] = document.getElementById('f_'+f).value; });
+  if (!r.pasajero || !r.desde || !r.hasta) { showToast('Completa al menos pasajero, origen y destino','error'); return; }
+  if (!scriptUrl) { showToast('Configura la URL primero','error'); return; }
+
+  r.id = Date.now(); r.created = new Date().toISOString();
+  document.getElementById('saveBtn').disabled = true;
+  setSyncStatus('spin','Guardando...');
+
+  try {
+    const d = await callScript({ action: 'save', data: encodeURIComponent(JSON.stringify(r)) });
+    setSyncStatus('ok','Guardado ✓');
+    clearForm();
+    showToast('✓ Guardado en Google Sheets','success');
+    setTimeout(() => showTab('registros'), 900);
+  } catch(e) {
+    setSyncStatus('err','Error al guardar');
+    showToast('Error al guardar: ' + e.message,'error');
+  }
+  document.getElementById('saveBtn').disabled = false;
+}
+
+async function loadFromSheets() {
+  if (!scriptUrl) { showToast('Configura la URL primero','error'); return; }
+  setSyncStatus('spin','Cargando...');
+  try {
+    const d = await callScript({ action: 'list' });
+    records = (d.records||[]).map(row => ({
+      pasajero: row['Pasajero']||'', aerolinea: row['Aerolínea']||'',
+      fecha_compra: row['Fecha Compra']||'', desde: row['Desde']||'',
+      hasta: row['Hasta']||'', fecha_ida: row['Fecha Ida']||'',
+      fecha_regreso: row['Fecha Regreso']||'', valor: row['Valor CLP']||'',
+      cc: row['Centro de Costo']||'', proyecto: row['Proyecto']||'',
+      factura: row['Factura Asociada']||'', pago: row['Forma de Pago']||''
+    }));
+    setSyncStatus('ok', `${records.length} registros`);
+    renderStats(); renderTable('');
+  } catch(e) {
+    setSyncStatus('err','Error al cargar');
+    showToast('No se pudo cargar desde Sheets','error');
+  }
+}
+
+function clearForm() {
+  FIELDS.forEach(f => { const el = document.getElementById('f_'+f); if(el) el.value=''; });
+  document.getElementById('emailText').value = '';
+  document.getElementById('extractedBadge').style.display = 'none';
+  document.getElementById('dropLabel').innerHTML = '<strong>Arrastra o haz clic para subir</strong><br>PDF o imagen del correo de confirmación';
+  attachedFileBase64 = null;
+}
+
+function showTab(t) {
+  document.getElementById('tab-ingresar').style.display = t==='ingresar' ? 'grid' : 'none';
+  document.getElementById('tab-registros').style.display = t==='registros' ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active',(i===0&&t==='ingresar')||(i===1&&t==='registros')));
+  if (t==='registros') loadFromSheets();
+}
+
+function renderStats() {
+  const total = records.length;
+  const totalValor = records.reduce((s,r)=>s+(parseFloat(r.valor)||0),0);
+  const areas = new Set(records.map(r=>r.cc).filter(Boolean)).size;
+  const pasajeros = new Set(records.map(r=>r.pasajero).filter(Boolean)).size;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total pasajes</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Gasto total</div><div class="stat-value">${totalValor>0?'$'+totalValor.toLocaleString('es-CL'):'—'}</div><div class="stat-sub">CLP</div></div>
+    <div class="stat-card"><div class="stat-label">Centros de costo</div><div class="stat-value">${areas}</div></div>
+    <div class="stat-card"><div class="stat-label">Pasajeros únicos</div><div class="stat-value">${pasajeros}</div></div>`;
+}
+
+function renderTable(q='') {
+  const q2 = q.toLowerCase();
+  const filtered = records.filter(r=>!q2||[r.pasajero,r.desde,r.hasta,r.proyecto,r.cc,r.aerolinea].some(v=>v&&v.toLowerCase().includes(q2)));
+  document.getElementById('countPill').textContent = `${filtered.length} registro${filtered.length!==1?'s':''}`;
+  const tbody = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+  if (!filtered.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = filtered.map((r,i)=>`<tr>
+    <td class="td-muted">${i+1}</td>
+    <td><span class="chip chip-blue">${r.aerolinea||'—'}</span></td>
+    <td class="td-muted">${r.fecha_compra||'—'}</td>
+    <td><strong>${r.pasajero||'—'}</strong></td>
+    <td>${r.desde||'—'}</td><td>${r.hasta||'—'}</td>
+    <td class="td-muted">${r.fecha_ida||'—'}</td>
+    <td class="td-muted">${r.fecha_regreso||'—'}</td>
+    <td class="valor">${r.valor?'$'+parseFloat(r.valor).toLocaleString('es-CL'):'—'}</td>
+    <td><span class="chip chip-yellow">${r.cc||'—'}</span></td>
+    <td>${r.proyecto||'—'}</td>
+    <td class="td-muted">${r.factura||'—'}</td>
+    <td class="td-muted">${r.pago||'—'}</td>
+  </tr>`).join('');
+}
+
+function exportCSV() {
+  const headers=['Aerolínea','F.Compra','Pasajero','Desde','Hasta','F.Ida','F.Regreso','Valor','CC','Proyecto','Factura','Pago'];
+  const keys=['aerolinea','fecha_compra','pasajero','desde','hasta','fecha_ida','fecha_regreso','valor','cc','proyecto','factura','pago'];
+  const rows=records.map(r=>keys.map(k=>`"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+[headers.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8;'}));
+  a.download=`pasajes_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot'+(state==='ok'?' ok':state==='err'?' err':state==='spin'?' spin':'');
+  document.getElementById('syncLabel').textContent = label;
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'), 4000);
+}
+
+showTab('ingresar');
+</script>
+</body>
+</html>
